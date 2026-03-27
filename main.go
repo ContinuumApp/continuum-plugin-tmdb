@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	_ "embed"
+	"encoding/hex"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -15,9 +17,9 @@ import (
 	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
 	"github.com/ContinuumApp/continuum-plugin-tmdb/models"
 	"github.com/ContinuumApp/continuum-plugin-tmdb/provider"
-	pluginv1 "continuum/continuum/pkg/pluginproto/continuum/plugin/v1"
-	publicmanifest "continuum/continuum/pkg/pluginsdk/manifest"
-	"continuum/continuum/pkg/pluginsdk/runtime"
+	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
+	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
+	"github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 )
 
 type connectionConfig struct {
@@ -38,6 +40,9 @@ type metadataServer struct {
 	pluginv1.UnimplementedMetadataProviderServer
 	runtime *runtimeServer
 }
+
+//go:embed manifest.json
+var manifestJSON []byte
 
 func (s *runtimeServer) GetManifest(context.Context, *pluginv1.GetManifestRequest) (*pluginv1.GetManifestResponse, error) {
 	return &pluginv1.GetManifestResponse{Manifest: s.manifest}, nil
@@ -231,21 +236,22 @@ func main() {
 }
 
 func loadManifest() (*pluginv1.PluginManifest, error) {
+	manifest, err := publicmanifest.Load(manifestJSON)
+	if err != nil {
+		return nil, fmt.Errorf("load embedded manifest: %w", err)
+	}
+
 	executablePath, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("resolve executable path: %w", err)
 	}
-
-	manifestPath := filepath.Join(filepath.Dir(executablePath), "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+	binaryData, err := os.ReadFile(executablePath)
 	if err != nil {
-		return nil, fmt.Errorf("read manifest file %q: %w", manifestPath, err)
+		return nil, fmt.Errorf("read executable %q: %w", executablePath, err)
 	}
+	checksum := sha256.Sum256(binaryData)
+	manifest.Checksum = hex.EncodeToString(checksum[:])
 
-	manifest, err := publicmanifest.Load(data)
-	if err != nil {
-		return nil, fmt.Errorf("load manifest file %q: %w", manifestPath, err)
-	}
 	return manifest, nil
 }
 

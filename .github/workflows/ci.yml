@@ -9,29 +9,24 @@ on:
 permissions:
   contents: read
 
-env:
-  CONTINUUM_REF: 77bbb3407cf443d2acf64b3e0ebc52ec166f51a4
-
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check out Continuum
+      - name: Check out Continuum plugin SDK
         uses: actions/checkout@v4
         with:
-          repository: ContinuumApp/continuum
-          ref: ${{ env.CONTINUUM_REF }}
-          path: continuum
-          token: ${{ secrets.CONTINUUM_REPO_TOKEN || github.token }}
+          repository: ContinuumApp/continuum-plugin-sdk
+          path: continuum-plugin-sdk
 
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
 
-      - name: Point module resolution at checked out Continuum repo
-        run: go mod edit -replace=continuum/continuum=./continuum
+      - name: Point module resolution at checked out SDK repo
+        run: go mod edit -replace=github.com/ContinuumApp/continuum-plugin-sdk=./continuum-plugin-sdk
 
       - name: Run tests
         run: go test ./...
