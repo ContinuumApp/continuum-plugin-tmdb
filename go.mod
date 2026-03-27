@@ -1,14 +1,29 @@
-// NOTE: github.com/ContinuumApp/continuum requires the main repo to update its go.mod module path.
-// Until then, use a replace directive for local development:
-// replace github.com/ContinuumApp/continuum => ../../../gitlab/continuum
+// NOTE: The main Continuum repo still declares module path "continuum/continuum".
+// For local development and CI, use a replace directive until that is updated:
+// replace continuum/continuum => ../../../gitlab/continuum
 
 module github.com/ContinuumApp/continuum-plugin-tmdb
 
 go 1.26.0
 
 require (
-	github.com/ContinuumApp/continuum v0.0.0
+	continuum/continuum v0.0.0
 	golang.org/x/time v0.14.0
 	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.11
+)
+
+require (
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/hashicorp/go-hclog v1.6.3 // indirect
+	github.com/hashicorp/go-plugin v1.7.0 // indirect
+	github.com/hashicorp/yamux v0.1.2 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/oklog/run v1.1.0 // indirect
+	golang.org/x/net v0.45.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 )

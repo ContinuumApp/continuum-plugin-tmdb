@@ -4,9 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  CONTINUUM_REF: 77bbb3407cf443d2acf64b3e0ebc52ec166f51a4
 
 jobs:
   build:
@@ -26,16 +30,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check out Continuum
+        uses: actions/checkout@v4
+        with:
+          repository: ContinuumApp/continuum
+          ref: ${{ env.CONTINUUM_REF }}
+          path: continuum
+          token: ${{ secrets.CONTINUUM_REPO_TOKEN || github.token }}
+
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+
+      - name: Point module resolution at checked out Continuum repo
+        run: go mod edit -replace=continuum/continuum=./continuum
 
       - name: Build plugin binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: '0'
-          GOPRIVATE: github.com/ContinuumApp/*
         run: |
           mkdir -p dist
           go build -trimpath -ldflags="-s -w" -o dist/plugin .
@@ -43,7 +57,12 @@ jobs:
       - name: Compute checksum
         run: |
           cd dist
-          sha256sum plugin > plugin.sha256
+          shasum -a 256 plugin > plugin.sha256
+
+      - name: Generate manifest
+        run: |
+          checksum=$(awk '{print $1}' dist/plugin.sha256)
+          sed "s/__CHECKSUM__/${checksum}/" manifest.json > dist/manifest.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -52,7 +71,7 @@ jobs:
           path: |
             dist/plugin
             dist/plugin.sha256
-            manifest.json
+            dist/manifest.json
 
   release:
     needs: build
