@@ -15,9 +15,9 @@ import (
 	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
 	"github.com/ContinuumApp/continuum-plugin-tmdb/models"
 	"github.com/ContinuumApp/continuum-plugin-tmdb/provider"
-	pluginv1 "github.com/ContinuumApp/continuum/pkg/pluginproto/continuum/plugin/v1"
-	publicmanifest "github.com/ContinuumApp/continuum/pkg/pluginsdk/manifest"
-	"github.com/ContinuumApp/continuum/pkg/pluginsdk/runtime"
+	pluginv1 "continuum/continuum/pkg/pluginproto/continuum/plugin/v1"
+	publicmanifest "continuum/continuum/pkg/pluginsdk/manifest"
+	"continuum/continuum/pkg/pluginsdk/runtime"
 )
 
 type connectionConfig struct {
