@@ -21,7 +21,21 @@
       "key": "connection",
       "title": "Connection",
       "description": "TMDB API key.",
-      "json_schema": "{\"type\":\"object\",\"properties\":{\"api_key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"api_key\"],\"additionalProperties\":false}"
+      "json_schema": "{\"type\":\"object\",\"properties\":{\"api_key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"api_key\"],\"additionalProperties\":false}",
+      "admin_form": {
+        "submit_label": "Save credentials",
+        "fields": [
+          {
+            "key": "api_key",
+            "label": "TMDB API Key",
+            "description": "Paste the API key from your TMDB account settings.",
+            "control": "ADMIN_FORM_CONTROL_PASSWORD",
+            "required": true,
+            "secret": true,
+            "placeholder": "Enter TMDB API key"
+          }
+        ]
+      }
     }
   ]
 }
