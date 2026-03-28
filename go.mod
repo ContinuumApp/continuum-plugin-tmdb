@@ -9,7 +9,7 @@ require (
 )
 
 require (
-	github.com/ContinuumApp/continuum-plugin-sdk v0.1.0
+	github.com/ContinuumApp/continuum-plugin-sdk v0.2.0
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
