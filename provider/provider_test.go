@@ -10,7 +10,7 @@ import (
 	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
 )
 
-func TestGetImagesUsesPreviewSizes(t *testing.T) {
+func TestGetImagesReturnsRawPaths(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -62,18 +62,18 @@ func TestGetImagesUsesPreviewSizes(t *testing.T) {
 		got[img.Type] = img.URL
 	}
 
-	if got[metadata.ImagePoster] != server.URL+"/images/w500/poster.jpg" {
+	if got[metadata.ImagePoster] != "/poster.jpg" {
 		t.Fatalf("poster URL = %q", got[metadata.ImagePoster])
 	}
-	if got[metadata.ImageBackdrop] != server.URL+"/images/w1280/backdrop.jpg" {
+	if got[metadata.ImageBackdrop] != "/backdrop.jpg" {
 		t.Fatalf("backdrop URL = %q", got[metadata.ImageBackdrop])
 	}
-	if got[metadata.ImageLogo] != server.URL+"/images/w500/logo.png" {
+	if got[metadata.ImageLogo] != "/logo.png" {
 		t.Fatalf("logo URL = %q", got[metadata.ImageLogo])
 	}
 }
 
-func TestGetSeasonsUsesPosterPreviewSize(t *testing.T) {
+func TestGetSeasonsReturnsRawPosterPath(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -111,12 +111,12 @@ func TestGetSeasonsUsesPosterPreviewSize(t *testing.T) {
 	if len(seasons) != 1 {
 		t.Fatalf("len(seasons) = %d, want 1", len(seasons))
 	}
-	if seasons[0].PosterPath != server.URL+"/images/w500/season-two.jpg" {
+	if seasons[0].PosterPath != "/season-two.jpg" {
 		t.Fatalf("season poster = %q", seasons[0].PosterPath)
 	}
 }
 
-func TestGetEpisodesUsesStillPreviewSize(t *testing.T) {
+func TestGetEpisodesReturnsRawStillPath(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func TestGetEpisodesUsesStillPreviewSize(t *testing.T) {
 	if len(episodes) != 1 {
 		t.Fatalf("len(episodes) = %d, want 1", len(episodes))
 	}
-	if episodes[0].StillPath != server.URL+"/images/w500/still.jpg" {
+	if episodes[0].StillPath != "/still.jpg" {
 		t.Fatalf("episode still = %q", episodes[0].StillPath)
 	}
 }

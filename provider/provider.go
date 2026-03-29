@@ -346,7 +346,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	var out []metadata.RemoteImage
 	for _, img := range imgs.Posters {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImagePoster)),
+			URL:      img.FilePath,
 			Type:     metadata.ImagePoster,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -356,7 +356,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	}
 	for _, img := range imgs.Backdrops {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImageBackdrop)),
+			URL:      img.FilePath,
 			Type:     metadata.ImageBackdrop,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -366,7 +366,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	}
 	for _, img := range imgs.Logos {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImageLogo)),
+			URL:      img.FilePath,
 			Type:     metadata.ImageLogo,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -407,7 +407,7 @@ func (p *Provider) GetSeasons(ctx context.Context, req metadata.SeasonsRequest) 
 			Title:        s.Name,
 			Overview:     s.Overview,
 			AirDate:      s.AirDate,
-			PosterPath:   p.client.ImageURL(s.PosterPath, tmdbPreviewSize(metadata.ImagePoster)),
+			PosterPath:   s.PosterPath,
 		})
 	}
 	return seasons, nil
@@ -441,7 +441,7 @@ func (p *Provider) GetEpisodes(ctx context.Context, req metadata.EpisodesRequest
 			Overview:      ep.Overview,
 			Runtime:       ep.Runtime,
 			AirDate:       ep.AirDate,
-			StillPath:     p.client.ImageURL(ep.StillPath, tmdbPreviewSize(metadata.ImageStill)),
+			StillPath:     ep.StillPath,
 		}
 		if ep.VoteAverage > 0 {
 			epResult.Ratings.TMDB = ep.VoteAverage
@@ -496,21 +496,18 @@ func convertPeople(credits *Credits) []models.ItemPerson {
 }
 
 func tmdbProfileImageURL(path string) string {
-	if path == "" {
-		return ""
-	}
-	return "https://image.tmdb.org/t/p/original" + path
+	return path
 }
 
-func tmdbPreviewSize(imageType metadata.ImageType) string {
-	switch imageType {
-	case metadata.ImageBackdrop:
-		return "w1280"
-	case metadata.ImagePoster, metadata.ImageLogo, metadata.ImageStill:
-		return "w500"
-	default:
-		return "w500"
-	}
+// LoadConfiguration fetches the TMDB /configuration endpoint and caches the
+// image base URL. Safe to call multiple times — only the first call hits the API.
+func (p *Provider) LoadConfiguration(ctx context.Context) error {
+	return p.client.loadConfiguration(ctx)
+}
+
+// ImageURL builds a full image URL from a TMDB file_path and size string.
+func (p *Provider) ImageURL(path, size string) string {
+	return p.client.ImageURL(path, size)
 }
 
 func extractYear(dateStr string) int {

@@ -14,12 +14,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
-	"github.com/ContinuumApp/continuum-plugin-tmdb/models"
-	"github.com/ContinuumApp/continuum-plugin-tmdb/provider"
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	"github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
+	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
+	"github.com/ContinuumApp/continuum-plugin-tmdb/models"
+	"github.com/ContinuumApp/continuum-plugin-tmdb/provider"
 )
 
 // version is set at build time via -ldflags "-X main.version=...".
@@ -174,7 +174,7 @@ func (s *metadataServer) GetSeasons(ctx context.Context, req *pluginv1.GetSeason
 			Title:        result.Title,
 			Overview:     result.Overview,
 			AirDate:      result.AirDate,
-			PosterPath:   result.PosterPath,
+			PosterPath:   tmdbCanonicalPath("poster", result.PosterPath),
 		})
 	}
 	return response, nil
@@ -210,7 +210,7 @@ func (s *metadataServer) GetEpisodes(ctx context.Context, req *pluginv1.GetEpiso
 			Overview:      result.Overview,
 			AirDate:       result.AirDate,
 			Runtime:       int32(result.Runtime),
-			StillPath:     result.StillPath,
+			StillPath:     tmdbCanonicalPath("still", result.StillPath),
 			ProviderIds:   providerIDs,
 			Ratings:       ratingsStruct(result.Ratings),
 		})
@@ -245,7 +245,7 @@ func (s *metadataServer) GetImages(ctx context.Context, req *pluginv1.GetImagesR
 		}
 		record := &pluginv1.ImageRecord{
 			Kind:     kind,
-			Url:      img.URL,
+			Url:      tmdbCanonicalPath(kind, img.URL),
 			Language: img.Language,
 			Width:    int32(img.Width),
 			Height:   int32(img.Height),
@@ -258,6 +258,85 @@ func (s *metadataServer) GetImages(ctx context.Context, req *pluginv1.GetImagesR
 		response.Images = append(response.Images, record)
 	}
 	return response, nil
+}
+
+// tmdbCanonicalPath wraps a raw TMDB file path with the tmdb:// scheme and role
+// prefix so that the host can resolve it later via ResolveImageURL.
+// Returns empty string if path is empty.
+func tmdbCanonicalPath(role, path string) string {
+	if path == "" {
+		return ""
+	}
+	return "tmdb://" + role + path
+}
+
+func tmdbVariantSize(variant, role string) string {
+	switch variant {
+	case "card":
+		if role == "profile" {
+			return "w185"
+		}
+		return "w300"
+	case "featured":
+		if role == "backdrop" {
+			return "w1280"
+		}
+		if role == "profile" {
+			return "w185"
+		}
+		return "w500"
+	case "full":
+		if role == "poster" {
+			return "w780"
+		}
+		return "original"
+	default: // "original" or empty
+		return "original"
+	}
+}
+
+func resolveOneTMDBPath(p *provider.Provider, barePath, variant string) string {
+	if barePath == "" {
+		return ""
+	}
+	slashIdx := strings.Index(barePath, "/")
+	if slashIdx <= 0 {
+		return ""
+	}
+	role := barePath[:slashIdx]
+	tmdbPath := barePath[slashIdx:] // includes leading slash
+	size := tmdbVariantSize(variant, role)
+	return p.ImageURL(tmdbPath, size)
+}
+
+func (s *metadataServer) ResolveImageURL(ctx context.Context, req *pluginv1.ResolveImageURLRequest) (*pluginv1.ResolveImageURLResponse, error) {
+	p, err := s.runtime.providerForRequest()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.LoadConfiguration(ctx); err != nil {
+		return nil, err
+	}
+	// Strip the tmdb:// scheme prefix before resolving.
+	barePath := strings.TrimPrefix(req.GetPath(), "tmdb://")
+	url := resolveOneTMDBPath(p, barePath, req.GetVariant())
+	return &pluginv1.ResolveImageURLResponse{Url: url}, nil
+}
+
+func (s *metadataServer) ResolveImageURLs(ctx context.Context, req *pluginv1.ResolveImageURLsRequest) (*pluginv1.ResolveImageURLsResponse, error) {
+	p, err := s.runtime.providerForRequest()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.LoadConfiguration(ctx); err != nil {
+		return nil, err
+	}
+	urls := make(map[string]string, len(req.GetPaths()))
+	for _, path := range req.GetPaths() {
+		barePath := strings.TrimPrefix(path, "tmdb://")
+		urls[path] = resolveOneTMDBPath(p, barePath, req.GetVariant())
+	}
+	return &pluginv1.ResolveImageURLsResponse{Urls: urls}, nil
 }
 
 func main() {
@@ -324,11 +403,11 @@ func metadataItemFromResult(result *metadata.MetadataResult, itemType string) (*
 		ContentRating:     result.ContentRating,
 		ProviderIds:       providerIDs,
 		Ratings:           ratingsStruct(result.Ratings),
-		PosterPath:        result.PosterPath,
+		PosterPath:        tmdbCanonicalPath("poster", result.PosterPath),
 		PosterThumbhash:   result.PosterThumbhash,
-		BackdropPath:      result.BackdropPath,
+		BackdropPath:      tmdbCanonicalPath("backdrop", result.BackdropPath),
 		BackdropThumbhash: result.BackdropThumbhash,
-		LogoPath:          result.LogoPath,
+		LogoPath:          tmdbCanonicalPath("logo", result.LogoPath),
 		SeasonCount:       int32(result.SeasonCount),
 		FirstAirDate:      result.FirstAirDate,
 		LastAirDate:       result.LastAirDate,
@@ -352,7 +431,7 @@ func peopleToRecords(people []models.ItemPerson) []*pluginv1.PersonRecord {
 			TvdbId:         person.TvdbID,
 			ImdbId:         person.ImdbID,
 			PlexGuid:       person.PlexGUID,
-			PhotoPath:      person.PhotoPath,
+			PhotoPath:      tmdbCanonicalPath("profile", person.PhotoPath),
 			PhotoThumbhash: person.PhotoThumbhash,
 		})
 	}
