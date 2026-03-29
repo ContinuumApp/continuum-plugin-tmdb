@@ -346,7 +346,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	var out []metadata.RemoteImage
 	for _, img := range imgs.Posters {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, "original"),
+			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImagePoster)),
 			Type:     metadata.ImagePoster,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -356,7 +356,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	}
 	for _, img := range imgs.Backdrops {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, "original"),
+			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImageBackdrop)),
 			Type:     metadata.ImageBackdrop,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -366,7 +366,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 	}
 	for _, img := range imgs.Logos {
 		out = append(out, metadata.RemoteImage{
-			URL:      p.client.ImageURL(img.FilePath, "original"),
+			URL:      p.client.ImageURL(img.FilePath, tmdbPreviewSize(metadata.ImageLogo)),
 			Type:     metadata.ImageLogo,
 			Language: img.ISO639_1,
 			Width:    img.Width,
@@ -407,7 +407,7 @@ func (p *Provider) GetSeasons(ctx context.Context, req metadata.SeasonsRequest) 
 			Title:        s.Name,
 			Overview:     s.Overview,
 			AirDate:      s.AirDate,
-			PosterPath:   p.client.ImageURL(s.PosterPath, "original"),
+			PosterPath:   p.client.ImageURL(s.PosterPath, tmdbPreviewSize(metadata.ImagePoster)),
 		})
 	}
 	return seasons, nil
@@ -441,7 +441,7 @@ func (p *Provider) GetEpisodes(ctx context.Context, req metadata.EpisodesRequest
 			Overview:      ep.Overview,
 			Runtime:       ep.Runtime,
 			AirDate:       ep.AirDate,
-			StillPath:     p.client.ImageURL(ep.StillPath, "original"),
+			StillPath:     p.client.ImageURL(ep.StillPath, tmdbPreviewSize(metadata.ImageStill)),
 		}
 		if ep.VoteAverage > 0 {
 			epResult.Ratings.TMDB = ep.VoteAverage
@@ -500,6 +500,17 @@ func tmdbProfileImageURL(path string) string {
 		return ""
 	}
 	return "https://image.tmdb.org/t/p/original" + path
+}
+
+func tmdbPreviewSize(imageType metadata.ImageType) string {
+	switch imageType {
+	case metadata.ImageBackdrop:
+		return "w1280"
+	case metadata.ImagePoster, metadata.ImageLogo, metadata.ImageStill:
+		return "w500"
+	default:
+		return "w500"
+	}
 }
 
 func extractYear(dateStr string) int {
