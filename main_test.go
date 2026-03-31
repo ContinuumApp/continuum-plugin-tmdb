@@ -307,3 +307,54 @@ func TestAssetRequestsFromProto_CarryProviderContext(t *testing.T) {
 		t.Fatalf("episodes ProviderIDs = %#v", episodesReq.ProviderIDs)
 	}
 }
+
+func TestMetadataServerGetPersonDetail_CanonicalizesProfilePath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/person/287":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":             287,
+				"name":           "Brad Pitt",
+				"biography":      "Biography",
+				"birthday":       "1963-12-18",
+				"place_of_birth": "Shawnee, Oklahoma, USA",
+				"profile_path":   "/brad.jpg",
+				"external_ids": map[string]any{
+					"imdb_id": "nm0000093",
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client := provider.NewClient("test-key", 1000)
+	client.SetBaseURL(server.URL)
+
+	ms := &metadataServer{
+		runtime: &runtimeServer{
+			provider: provider.NewProviderWithClient(client),
+		},
+	}
+
+	resp, err := ms.GetPersonDetail(context.Background(), &pluginv1.GetPersonDetailRequest{
+		ProviderIds: mustStruct(t, map[string]any{
+			"tmdb": "287",
+		}),
+	})
+	if err != nil {
+		t.Fatalf("GetPersonDetail() error = %v", err)
+	}
+	if resp.GetPerson() == nil {
+		t.Fatal("expected person detail record")
+	}
+	if resp.GetPerson().GetPhotoPath() != "tmdb://profile/brad.jpg" {
+		t.Fatalf("PhotoPath = %q, want tmdb://profile/brad.jpg", resp.GetPerson().GetPhotoPath())
+	}
+	if resp.GetPerson().GetProviderIds().AsMap()["imdb"] != "nm0000093" {
+		t.Fatalf("provider_ids[imdb] = %v, want nm0000093", resp.GetPerson().GetProviderIds().AsMap()["imdb"])
+	}
+}

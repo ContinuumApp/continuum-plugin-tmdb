@@ -32,6 +32,26 @@ type MetadataRequest struct {
 	FilePath    string
 }
 
+// PersonDetailRequest is passed to person detail lookups.
+type PersonDetailRequest struct {
+	ProviderIDs map[string]string
+	Language    string
+}
+
+// PersonDetailResult carries person-level metadata from a provider.
+type PersonDetailResult struct {
+	Name           string
+	SortName       string
+	Bio            string
+	BirthDate      string
+	DeathDate      string
+	Birthplace     string
+	Homepage       string
+	PhotoPath      string
+	PhotoThumbhash string
+	ProviderIDs    map[string]string
+}
+
 // MetadataResult carries structured metadata from a single provider.
 type MetadataResult struct {
 	HasMetadata       bool

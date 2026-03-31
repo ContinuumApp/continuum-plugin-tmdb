@@ -183,6 +183,17 @@ func (p *Provider) findByExternalID(ctx context.Context, externalID, source, med
 	return 0, nil
 }
 
+func (p *Provider) findPersonByExternalID(ctx context.Context, externalID, source string) (int, error) {
+	resp, err := p.client.FindByExternalID(ctx, externalID, source)
+	if err != nil {
+		return 0, err
+	}
+	if len(resp.PersonResults) > 0 {
+		return resp.PersonResults[0].ID, nil
+	}
+	return 0, nil
+}
+
 // ---------------------------------------------------------------------------
 // MetadataProvider
 // ---------------------------------------------------------------------------
@@ -206,6 +217,46 @@ func (p *Provider) GetMetadata(ctx context.Context, req metadata.MetadataRequest
 		return p.getTVMetadata(ctx, id)
 	}
 	return nil, nil
+}
+
+func (p *Provider) GetPersonDetail(ctx context.Context, req metadata.PersonDetailRequest) (*metadata.PersonDetailResult, error) {
+	personID := req.ProviderIDs["tmdb"]
+	switch {
+	case personID != "":
+	case req.ProviderIDs["imdb"] != "":
+		id, err := p.findPersonByExternalID(ctx, req.ProviderIDs["imdb"], "imdb_id")
+		if err != nil || id == 0 {
+			return nil, err
+		}
+		personID = strconv.Itoa(id)
+	default:
+		return nil, nil
+	}
+
+	id, err := strconv.Atoi(personID)
+	if err != nil {
+		return nil, fmt.Errorf("tmdb: invalid TMDB person ID %q: %w", personID, err)
+	}
+
+	person, err := p.client.GetPerson(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &metadata.PersonDetailResult{
+		Name:        person.Name,
+		Bio:         person.Biography,
+		BirthDate:   person.Birthday,
+		DeathDate:   person.Deathday,
+		Birthplace:  person.PlaceOfBirth,
+		Homepage:    person.Homepage,
+		PhotoPath:   person.ProfilePath,
+		ProviderIDs: map[string]string{"tmdb": strconv.Itoa(person.ID)},
+	}
+	if person.ExternalIDs != nil && person.ExternalIDs.IMDbID != "" {
+		result.ProviderIDs["imdb"] = person.ExternalIDs.IMDbID
+	}
+	return result, nil
 }
 
 func (p *Provider) getMovieMetadata(ctx context.Context, id int) (*metadata.MetadataResult, error) {

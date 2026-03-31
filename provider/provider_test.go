@@ -165,6 +165,115 @@ func TestGetEpisodesReturnsRawStillPath(t *testing.T) {
 	}
 }
 
+func TestGetPersonDetail_UsesTMDBID(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/person/287":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":             287,
+				"name":           "Brad Pitt",
+				"biography":      "Biography",
+				"birthday":       "1963-12-18",
+				"place_of_birth": "Shawnee, Oklahoma, USA",
+				"homepage":       "https://example.test/brad",
+				"profile_path":   "/brad.jpg",
+				"external_ids": map[string]any{
+					"imdb_id": "nm0000093",
+				},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	p := newTMDBTestProvider(server.URL)
+
+	person, err := p.GetPersonDetail(context.Background(), metadata.PersonDetailRequest{
+		ProviderIDs: map[string]string{"tmdb": "287"},
+	})
+	if err != nil {
+		t.Fatalf("GetPersonDetail() error = %v", err)
+	}
+	if person == nil {
+		t.Fatal("GetPersonDetail() returned nil person")
+	}
+	if person.Name != "Brad Pitt" {
+		t.Fatalf("Name = %q, want Brad Pitt", person.Name)
+	}
+	if person.BirthDate != "1963-12-18" {
+		t.Fatalf("BirthDate = %q, want 1963-12-18", person.BirthDate)
+	}
+	if person.Birthplace != "Shawnee, Oklahoma, USA" {
+		t.Fatalf("Birthplace = %q", person.Birthplace)
+	}
+	if person.Homepage != "https://example.test/brad" {
+		t.Fatalf("Homepage = %q", person.Homepage)
+	}
+	if person.PhotoPath != "/brad.jpg" {
+		t.Fatalf("PhotoPath = %q, want /brad.jpg", person.PhotoPath)
+	}
+	if person.ProviderIDs["tmdb"] != "287" {
+		t.Fatalf("ProviderIDs[tmdb] = %q, want 287", person.ProviderIDs["tmdb"])
+	}
+	if person.ProviderIDs["imdb"] != "nm0000093" {
+		t.Fatalf("ProviderIDs[imdb] = %q, want nm0000093", person.ProviderIDs["imdb"])
+	}
+}
+
+func TestGetPersonDetail_FindsTMDBPersonByIMDbID(t *testing.T) {
+	t.Parallel()
+
+	findSource := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/find/nm0000093":
+			findSource = r.URL.Query().Get("external_source")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"person_results": []map[string]any{
+					{"id": 287},
+				},
+			})
+		case "/person/287":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":           287,
+				"name":         "Brad Pitt",
+				"profile_path": "/brad.jpg",
+				"external_ids": map[string]any{
+					"imdb_id": "nm0000093",
+				},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	p := newTMDBTestProvider(server.URL)
+
+	person, err := p.GetPersonDetail(context.Background(), metadata.PersonDetailRequest{
+		ProviderIDs: map[string]string{"imdb": "nm0000093"},
+	})
+	if err != nil {
+		t.Fatalf("GetPersonDetail() error = %v", err)
+	}
+	if person == nil {
+		t.Fatal("GetPersonDetail() returned nil person")
+	}
+	if person.ProviderIDs["tmdb"] != "287" {
+		t.Fatalf("ProviderIDs[tmdb] = %q, want 287", person.ProviderIDs["tmdb"])
+	}
+	if findSource != "imdb_id" {
+		t.Fatalf("external_source = %q, want imdb_id", findSource)
+	}
+}
+
 func newTMDBTestProvider(baseURL string) *Provider {
 	client := NewClient("test-key", 1000)
 	client.SetBaseURL(baseURL)

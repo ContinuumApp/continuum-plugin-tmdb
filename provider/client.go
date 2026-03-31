@@ -405,6 +405,16 @@ func (c *Client) GetTV(ctx context.Context, id int) (*TVDetail, error) {
 	return &tv, nil
 }
 
+// GetPerson fetches full person details with external IDs appended.
+func (c *Client) GetPerson(ctx context.Context, id int) (*PersonDetail, error) {
+	path := fmt.Sprintf("/person/%d?append_to_response=external_ids", id)
+	var person PersonDetail
+	if err := c.doGet(ctx, path, &person); err != nil {
+		return nil, err
+	}
+	return &person, nil
+}
+
 // GetSeason fetches a TV season with all episodes inline.
 func (c *Client) GetSeason(ctx context.Context, tvID, seasonNumber int) (*SeasonDetail, error) {
 	path := fmt.Sprintf("/tv/%d/season/%d", tvID, seasonNumber)

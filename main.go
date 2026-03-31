@@ -142,6 +142,27 @@ func (s *metadataServer) GetMetadata(ctx context.Context, req *pluginv1.GetMetad
 	return &pluginv1.GetMetadataResponse{Item: item}, nil
 }
 
+func (s *metadataServer) GetPersonDetail(ctx context.Context, req *pluginv1.GetPersonDetailRequest) (*pluginv1.GetPersonDetailResponse, error) {
+	p, err := s.runtime.providerForRequest()
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := p.GetPersonDetail(ctx, personDetailRequestFromProto(req))
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return &pluginv1.GetPersonDetailResponse{}, nil
+	}
+
+	person, err := personDetailRecordFromResult(result)
+	if err != nil {
+		return nil, err
+	}
+	return &pluginv1.GetPersonDetailResponse{Person: person}, nil
+}
+
 func (s *metadataServer) GetSeasons(ctx context.Context, req *pluginv1.GetSeasonsRequest) (*pluginv1.GetSeasonsResponse, error) {
 	p, err := s.runtime.providerForRequest()
 	if err != nil {
@@ -404,12 +425,39 @@ func metadataItemFromResult(result *metadata.MetadataResult, itemType string) (*
 	}, nil
 }
 
+func personDetailRecordFromResult(result *metadata.PersonDetailResult) (*pluginv1.PersonDetailRecord, error) {
+	providerIDs, err := stringStruct(result.ProviderIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pluginv1.PersonDetailRecord{
+		Name:           result.Name,
+		SortName:       result.SortName,
+		Bio:            result.Bio,
+		BirthDate:      result.BirthDate,
+		DeathDate:      result.DeathDate,
+		Birthplace:     result.Birthplace,
+		Homepage:       result.Homepage,
+		PhotoPath:      tmdbCanonicalPath("profile", result.PhotoPath),
+		PhotoThumbhash: result.PhotoThumbhash,
+		ProviderIds:    providerIDs,
+	}, nil
+}
+
 func metadataRequestFromProto(req *pluginv1.GetMetadataRequest, capabilityID string) metadata.MetadataRequest {
 	return metadata.MetadataRequest{
 		ProviderIDs: providerIDsFromProto(req.GetProviderIds(), capabilityID, req.GetProviderId()),
 		ContentType: req.GetItemType(),
 		Language:    req.GetLanguage(),
 		FilePath:    req.GetFilePath(),
+	}
+}
+
+func personDetailRequestFromProto(req *pluginv1.GetPersonDetailRequest) metadata.PersonDetailRequest {
+	return metadata.PersonDetailRequest{
+		ProviderIDs: stringMapFromStruct(req.GetProviderIds()),
+		Language:    req.GetLanguage(),
 	}
 }
 

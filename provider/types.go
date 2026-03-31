@@ -190,9 +190,15 @@ type EpisodeDetail struct {
 // FindResponse is the result of /find/{external_id}.
 type FindResponse struct {
 	MovieResults     []MovieResult     `json:"movie_results"`
+	PersonResults    []PersonResult    `json:"person_results"`
 	TVResults        []TVResult        `json:"tv_results"`
 	TVEpisodeResults []TVEpisodeResult `json:"tv_episode_results"`
 	TVSeasonResults  []TVSeasonResult  `json:"tv_season_results"`
+}
+
+// PersonResult is a person returned by the TMDB find endpoint.
+type PersonResult struct {
+	ID int `json:"id"`
 }
 
 // TVEpisodeResult is an episode in a find response.
@@ -259,6 +265,19 @@ type ExternalIDs struct {
 	WikidataID string `json:"wikidata_id"`
 	FacebookID string `json:"facebook_id"`
 	TwitterID  string `json:"twitter_id"`
+}
+
+// PersonDetail is the full person record from /person/{id}.
+type PersonDetail struct {
+	ID           int          `json:"id"`
+	Name         string       `json:"name"`
+	Biography    string       `json:"biography"`
+	Birthday     string       `json:"birthday"`
+	Deathday     string       `json:"deathday"`
+	PlaceOfBirth string       `json:"place_of_birth"`
+	Homepage     string       `json:"homepage"`
+	ProfilePath  string       `json:"profile_path"`
+	ExternalIDs  *ExternalIDs `json:"external_ids"`
 }
 
 // Image is a single image from TMDB.
