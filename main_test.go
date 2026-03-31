@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"google.golang.org/grpc/codes"
@@ -66,6 +67,21 @@ func mustStruct(t *testing.T, value map[string]any) *structpb.Struct {
 		t.Fatalf("structpb.NewStruct() returned error: %v", err)
 	}
 	return result
+}
+
+func metadataItemReleaseDate(t *testing.T, item *pluginv1.MetadataItem) string {
+	t.Helper()
+
+	field := item.ProtoReflect().Descriptor().Fields().ByName("release_date")
+	if field == nil {
+		t.Fatal("MetadataItem descriptor is missing release_date")
+	}
+
+	value := item.ProtoReflect().Get(field)
+	if value.Interface() == nil {
+		return ""
+	}
+	return value.String()
 }
 
 func TestResolveImageURL(t *testing.T) {
@@ -135,5 +151,159 @@ func TestResolveImageURL(t *testing.T) {
 				t.Fatalf("URL = %q, want %q", resp.GetUrl(), tc.wantURL)
 			}
 		})
+	}
+}
+
+func TestMetadataServerGetMetadata_IncludesReleaseDate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/configuration":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"images": map[string]any{
+					"secure_base_url": "https://image.tmdb.org/t/p/",
+				},
+			})
+		case "/movie/123":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":                123,
+				"title":             "Example Movie",
+				"original_title":    "Example Movie",
+				"overview":          "Overview",
+				"tagline":           "Tagline",
+				"release_date":      "2024-01-02",
+				"runtime":           120,
+				"vote_average":      7.2,
+				"original_language": "en",
+				"genres":            []map[string]any{{"id": 1, "name": "Drama"}},
+				"production_companies": []map[string]any{
+					{"id": 2, "name": "Studio"},
+				},
+				"origin_country": []string{"US"},
+				"external_ids": map[string]any{
+					"imdb_id": "tt1234567",
+				},
+				"credits": map[string]any{
+					"cast": []any{},
+					"crew": []any{},
+				},
+				"release_dates": map[string]any{
+					"results": []any{},
+				},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client := provider.NewClient("test-key", 1000)
+	client.SetBaseURL(server.URL)
+
+	ms := &metadataServer{
+		runtime: &runtimeServer{
+			provider: provider.NewProviderWithClient(client),
+		},
+	}
+
+	resp, err := ms.GetMetadata(context.Background(), &pluginv1.GetMetadataRequest{
+		ProviderId: "123",
+		ItemType:   "movie",
+	})
+	if err != nil {
+		t.Fatalf("GetMetadata() error = %v", err)
+	}
+
+	if got := metadataItemReleaseDate(t, resp.GetItem()); got != "2024-01-02" {
+		t.Fatalf("release_date = %q, want 2024-01-02", got)
+	}
+}
+
+func TestMetadataRequestFromProto_CarriesContextFields(t *testing.T) {
+	req := &pluginv1.GetMetadataRequest{
+		ProviderId: "123",
+		ItemType:   "movie",
+		ProviderIds: mustStruct(t, map[string]any{
+			"imdb": "tt1234567",
+		}),
+		Language: "fr",
+		FilePath: "/media/movies/example.mkv",
+	}
+
+	got := metadataRequestFromProto(req, "tmdb")
+
+	if got.ContentType != "movie" {
+		t.Fatalf("ContentType = %q, want movie", got.ContentType)
+	}
+	if got.Language != "fr" {
+		t.Fatalf("Language = %q, want fr", got.Language)
+	}
+	if got.FilePath != "/media/movies/example.mkv" {
+		t.Fatalf("FilePath = %q, want /media/movies/example.mkv", got.FilePath)
+	}
+
+	wantIDs := map[string]string{
+		"tmdb": "123",
+		"imdb": "tt1234567",
+	}
+	if !reflect.DeepEqual(got.ProviderIDs, wantIDs) {
+		t.Fatalf("ProviderIDs = %#v, want %#v", got.ProviderIDs, wantIDs)
+	}
+}
+
+func TestAssetRequestsFromProto_CarryProviderContext(t *testing.T) {
+	imageReq := imageRequestFromProto(&pluginv1.GetImagesRequest{
+		ProviderId: "123",
+		ItemType:   "movie",
+		ProviderIds: mustStruct(t, map[string]any{
+			"imdb": "tt1234567",
+		}),
+		Language: "es",
+	}, "tmdb")
+	if imageReq.ContentType != "movie" {
+		t.Fatalf("image ContentType = %q, want movie", imageReq.ContentType)
+	}
+	if imageReq.Language != "es" {
+		t.Fatalf("image Language = %q, want es", imageReq.Language)
+	}
+	if !reflect.DeepEqual(imageReq.ProviderIDs, map[string]string{
+		"tmdb": "123",
+		"imdb": "tt1234567",
+	}) {
+		t.Fatalf("image ProviderIDs = %#v", imageReq.ProviderIDs)
+	}
+
+	seasonsReq := seasonsRequestFromProto(&pluginv1.GetSeasonsRequest{
+		SeriesProviderId: "series-1",
+		ProviderIds: mustStruct(t, map[string]any{
+			"tvdb": "81189",
+		}),
+	}, "tmdb")
+	if seasonsReq.ContentType != "series" {
+		t.Fatalf("seasons ContentType = %q, want series", seasonsReq.ContentType)
+	}
+	if !reflect.DeepEqual(seasonsReq.ProviderIDs, map[string]string{
+		"tmdb": "series-1",
+		"tvdb": "81189",
+	}) {
+		t.Fatalf("seasons ProviderIDs = %#v", seasonsReq.ProviderIDs)
+	}
+
+	episodesReq := episodesRequestFromProto(&pluginv1.GetEpisodesRequest{
+		SeriesProviderId: "series-1",
+		SeasonNumber:     2,
+		ProviderIds: mustStruct(t, map[string]any{
+			"tvdb": "81189",
+		}),
+	}, "tmdb")
+	if episodesReq.SeasonNumber != 2 {
+		t.Fatalf("SeasonNumber = %d, want 2", episodesReq.SeasonNumber)
+	}
+	if !reflect.DeepEqual(episodesReq.ProviderIDs, map[string]string{
+		"tmdb": "series-1",
+		"tvdb": "81189",
+	}) {
+		t.Fatalf("episodes ProviderIDs = %#v", episodesReq.ProviderIDs)
 	}
 }
