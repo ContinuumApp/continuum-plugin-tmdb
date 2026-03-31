@@ -34,31 +34,32 @@ type MetadataRequest struct {
 
 // MetadataResult carries structured metadata from a single provider.
 type MetadataResult struct {
-	HasMetadata      bool
-	ProviderIDs      map[string]string
-	Title            string
-	OriginalTitle    string
-	SortTitle        string
-	Overview         string
-	Tagline          string
-	Year             int
-	Runtime          int
-	Genres           []string
-	Studios          []string
-	Networks         []string
-	Countries        []string
-	OriginalLanguage string
-	ContentRating    string
-	Ratings          Ratings
-	People           []models.ItemPerson
+	HasMetadata       bool
+	ProviderIDs       map[string]string
+	Title             string
+	OriginalTitle     string
+	SortTitle         string
+	Overview          string
+	Tagline           string
+	Year              int
+	Runtime           int
+	Genres            []string
+	Studios           []string
+	Networks          []string
+	Countries         []string
+	OriginalLanguage  string
+	ContentRating     string
+	Ratings           Ratings
+	People            []models.ItemPerson
 	PosterPath        string
 	PosterThumbhash   string
 	BackdropPath      string
 	BackdropThumbhash string
 	LogoPath          string
-	SeasonCount  int
-	FirstAirDate string
-	LastAirDate  string
+	ReleaseDate       string
+	SeasonCount       int
+	FirstAirDate      string
+	LastAirDate       string
 }
 
 // Ratings holds ratings from multiple sources.

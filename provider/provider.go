@@ -223,6 +223,7 @@ func (p *Provider) getMovieMetadata(ctx context.Context, id int) (*metadata.Meta
 		Tagline:          movie.Tagline,
 		Runtime:          movie.Runtime,
 		Year:             extractYear(movie.ReleaseDate),
+		ReleaseDate:      movie.ReleaseDate,
 		ContentRating:    movieContentRating(movie.ReleaseDates),
 		ProviderIDs:      map[string]string{"tmdb": strconv.Itoa(movie.ID)},
 	}
