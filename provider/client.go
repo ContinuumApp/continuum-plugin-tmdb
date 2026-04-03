@@ -17,6 +17,7 @@ import (
 
 const (
 	defaultBaseURL  = "https://api.themoviedb.org/3"
+	defaultAPIKey   = "9c18082d4985d4a204bc88af823a6353"
 	maxRetries      = 3
 	maxResponseBody = 1 << 20 // 1 MB
 )
@@ -32,12 +33,12 @@ type Client struct {
 	configErr  error
 }
 
-// NewClient creates a TMDB API client with the given API key and rate limit
-// (requests per second).
-func NewClient(apiKey string, rateLimit int) *Client {
+// NewClient creates a TMDB API client with the given rate limit (requests per
+// second). It uses the built-in project API key.
+func NewClient(rateLimit int) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
-		apiKey:     apiKey,
+		apiKey:     defaultAPIKey,
 		baseURL:    defaultBaseURL,
 		limiter:    rate.NewLimiter(rate.Limit(rateLimit), rateLimit),
 	}

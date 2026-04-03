@@ -17,9 +17,9 @@ type Provider struct {
 	client *Client
 }
 
-// NewProvider creates a TMDB provider with the given API key.
-func NewProvider(apiKey string) *Provider {
-	return &Provider{client: NewClient(apiKey, 40)}
+// NewProvider creates a TMDB provider using the built-in project API key.
+func NewProvider() *Provider {
+	return &Provider{client: NewClient(40)}
 }
 
 // NewProviderWithClient creates a TMDB provider with a pre-configured client.

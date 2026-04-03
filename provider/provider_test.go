@@ -275,7 +275,7 @@ func TestGetPersonDetail_FindsTMDBPersonByIMDbID(t *testing.T) {
 }
 
 func newTMDBTestProvider(baseURL string) *Provider {
-	client := NewClient("test-key", 1000)
+	client := NewClient(1000)
 	client.SetBaseURL(baseURL)
 	return NewProviderWithClient(client)
 }
