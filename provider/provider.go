@@ -95,7 +95,7 @@ func (p *Provider) searchByTmdbID(ctx context.Context, id int, contentType strin
 			Name:        movie.Title,
 			Year:        extractYear(movie.ReleaseDate),
 			ProviderIDs: ids,
-			ImageURL:    p.client.ImageURL(movie.PosterPath, "w500"),
+			ImageURL:    movie.PosterPath,
 			Overview:    movie.Overview,
 			Provider:    p.Slug(),
 		}}, nil
@@ -117,7 +117,7 @@ func (p *Provider) searchByTmdbID(ctx context.Context, id int, contentType strin
 			Name:        tv.Name,
 			Year:        extractYear(tv.FirstAirDate),
 			ProviderIDs: ids,
-			ImageURL:    p.client.ImageURL(tv.PosterPath, "w500"),
+			ImageURL:    tv.PosterPath,
 			Overview:    tv.Overview,
 			Provider:    p.Slug(),
 		}}, nil
@@ -138,7 +138,7 @@ func (p *Provider) searchByTitle(ctx context.Context, query metadata.SearchQuery
 				Name:        r.Title,
 				Year:        extractYear(r.ReleaseDate),
 				ProviderIDs: map[string]string{"tmdb": strconv.Itoa(r.ID)},
-				ImageURL:    p.client.ImageURL(r.PosterPath, "w500"),
+				ImageURL:    r.PosterPath,
 				Overview:    r.Overview,
 				Provider:    p.Slug(),
 			})
@@ -155,7 +155,7 @@ func (p *Provider) searchByTitle(ctx context.Context, query metadata.SearchQuery
 				Name:        r.Name,
 				Year:        extractYear(r.FirstAirDate),
 				ProviderIDs: map[string]string{"tmdb": strconv.Itoa(r.ID)},
-				ImageURL:    p.client.ImageURL(r.PosterPath, "w500"),
+				ImageURL:    r.PosterPath,
 				Overview:    r.Overview,
 				Provider:    p.Slug(),
 			})
@@ -303,6 +303,11 @@ func (p *Provider) getMovieMetadata(ctx context.Context, id int) (*metadata.Meta
 	}
 	result.Countries = movie.OriginCountry
 
+	// Carry the top-level poster/backdrop/logo paths so they're available even
+	// when the images sub-response is empty (common for obscure or new titles).
+	result.PosterPath = movie.PosterPath
+	result.BackdropPath = movie.BackdropPath
+
 	result.People = convertPeople(movie.Credits)
 
 	return result, nil
@@ -352,6 +357,11 @@ func (p *Provider) getTVMetadata(ctx context.Context, id int) (*metadata.Metadat
 		result.Studios = append(result.Studios, c.Name)
 	}
 	result.Countries = tv.OriginCountry
+
+	// Carry the top-level poster/backdrop paths so they're available even
+	// when the images sub-response is empty (common for obscure or new titles).
+	result.PosterPath = tv.PosterPath
+	result.BackdropPath = tv.BackdropPath
 
 	result.People = convertPeople(tv.Credits)
 
