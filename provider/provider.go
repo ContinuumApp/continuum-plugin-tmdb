@@ -4,10 +4,23 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ContinuumApp/continuum-plugin-tmdb/metadata"
 	"github.com/ContinuumApp/continuum-plugin-tmdb/models"
 )
+
+const defaultTMDBLanguage = "en-US"
+
+// tmdbLanguage converts an ISO 639-1 code to a TMDB API language parameter.
+// Empty input returns "en-US". TMDB accepts bare 2-letter codes directly.
+func tmdbLanguage(lang string) string {
+	lang = strings.TrimSpace(strings.ToLower(lang))
+	if lang == "" {
+		return defaultTMDBLanguage
+	}
+	return lang
+}
 
 const maxCast = 20
 
@@ -78,7 +91,7 @@ func (p *Provider) Search(ctx context.Context, query metadata.SearchQuery) ([]me
 func (p *Provider) searchByTmdbID(ctx context.Context, id int, contentType string) ([]metadata.SearchResult, error) {
 	switch contentType {
 	case "movie":
-		movie, err := p.client.GetMovie(ctx, id)
+		movie, err := p.client.GetMovie(ctx, id, defaultTMDBLanguage)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +113,7 @@ func (p *Provider) searchByTmdbID(ctx context.Context, id int, contentType strin
 			Provider:    p.Slug(),
 		}}, nil
 	case "series":
-		tv, err := p.client.GetTV(ctx, id)
+		tv, err := p.client.GetTV(ctx, id, defaultTMDBLanguage)
 		if err != nil {
 			return nil, err
 		}
@@ -210,11 +223,12 @@ func (p *Provider) GetMetadata(ctx context.Context, req metadata.MetadataRequest
 	if err != nil {
 		return nil, fmt.Errorf("tmdb: invalid TMDB ID %q: %w", tmdbID, err)
 	}
+	lang := tmdbLanguage(req.Language)
 	switch req.ContentType {
 	case "movie":
-		return p.getMovieMetadata(ctx, id)
+		return p.getMovieMetadata(ctx, id, lang)
 	case "series":
-		return p.getTVMetadata(ctx, id)
+		return p.getTVMetadata(ctx, id, lang)
 	}
 	return nil, nil
 }
@@ -238,7 +252,7 @@ func (p *Provider) GetPersonDetail(ctx context.Context, req metadata.PersonDetai
 		return nil, fmt.Errorf("tmdb: invalid TMDB person ID %q: %w", personID, err)
 	}
 
-	person, err := p.client.GetPerson(ctx, id)
+	person, err := p.client.GetPerson(ctx, id, tmdbLanguage(req.Language))
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +273,8 @@ func (p *Provider) GetPersonDetail(ctx context.Context, req metadata.PersonDetai
 	return result, nil
 }
 
-func (p *Provider) getMovieMetadata(ctx context.Context, id int) (*metadata.MetadataResult, error) {
-	movie, err := p.client.GetMovie(ctx, id)
+func (p *Provider) getMovieMetadata(ctx context.Context, id int, lang string) (*metadata.MetadataResult, error) {
+	movie, err := p.client.GetMovie(ctx, id, lang)
 	if err != nil {
 		return nil, err
 	}
@@ -313,8 +327,8 @@ func (p *Provider) getMovieMetadata(ctx context.Context, id int) (*metadata.Meta
 	return result, nil
 }
 
-func (p *Provider) getTVMetadata(ctx context.Context, id int) (*metadata.MetadataResult, error) {
-	tv, err := p.client.GetTV(ctx, id)
+func (p *Provider) getTVMetadata(ctx context.Context, id int, lang string) (*metadata.MetadataResult, error) {
+	tv, err := p.client.GetTV(ctx, id, lang)
 	if err != nil {
 		return nil, err
 	}
@@ -385,16 +399,17 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 		return nil, fmt.Errorf("tmdb: invalid TMDB ID %q: %w", tmdbID, err)
 	}
 
+	lang := tmdbLanguage(req.Language)
 	var imgs *ImageSet
 	switch req.ContentType {
 	case "movie":
-		movie, err := p.client.GetMovie(ctx, id)
+		movie, err := p.client.GetMovie(ctx, id, lang)
 		if err != nil {
 			return nil, err
 		}
 		imgs = movie.Images
 	case "series":
-		tv, err := p.client.GetTV(ctx, id)
+		tv, err := p.client.GetTV(ctx, id, lang)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +472,8 @@ func (p *Provider) GetSeasons(ctx context.Context, req metadata.SeasonsRequest) 
 		return nil, fmt.Errorf("tmdb: invalid TMDB ID: %w", err)
 	}
 
-	tv, err := p.client.GetTV(ctx, id)
+	lang := tmdbLanguage(req.Language)
+	tv, err := p.client.GetTV(ctx, id, lang)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +504,8 @@ func (p *Provider) GetEpisodes(ctx context.Context, req metadata.EpisodesRequest
 		return nil, fmt.Errorf("tmdb: invalid TMDB ID: %w", err)
 	}
 
-	season, err := p.client.GetSeason(ctx, id, req.SeasonNumber)
+	lang := tmdbLanguage(req.Language)
+	season, err := p.client.GetSeason(ctx, id, req.SeasonNumber, lang)
 	if err != nil {
 		return nil, err
 	}

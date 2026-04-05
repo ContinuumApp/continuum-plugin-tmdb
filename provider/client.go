@@ -386,8 +386,11 @@ func (c *Client) FindByExternalID(ctx context.Context, externalID, source string
 
 // GetMovie fetches full movie details with credits, external IDs, images,
 // and release dates appended in a single API call.
-func (c *Client) GetMovie(ctx context.Context, id int) (*MovieDetail, error) {
-	path := fmt.Sprintf("/movie/%d?append_to_response=credits,external_ids,images,release_dates", id)
+// The lang parameter is an ISO 639-1 code (e.g. "en", "ja") passed as
+// ?language= and &include_image_language= to get localized metadata and images.
+func (c *Client) GetMovie(ctx context.Context, id int, lang string) (*MovieDetail, error) {
+	path := fmt.Sprintf("/movie/%d?append_to_response=credits,external_ids,images,release_dates&language=%s&include_image_language=%s,null",
+		id, url.QueryEscape(lang), url.QueryEscape(lang))
 	var movie MovieDetail
 	if err := c.doGet(ctx, path, &movie); err != nil {
 		return nil, err
@@ -397,8 +400,9 @@ func (c *Client) GetMovie(ctx context.Context, id int) (*MovieDetail, error) {
 
 // GetTV fetches full TV show details with credits, external IDs, images,
 // and content ratings appended.
-func (c *Client) GetTV(ctx context.Context, id int) (*TVDetail, error) {
-	path := fmt.Sprintf("/tv/%d?append_to_response=credits,external_ids,images,content_ratings", id)
+func (c *Client) GetTV(ctx context.Context, id int, lang string) (*TVDetail, error) {
+	path := fmt.Sprintf("/tv/%d?append_to_response=credits,external_ids,images,content_ratings&language=%s&include_image_language=%s,null",
+		id, url.QueryEscape(lang), url.QueryEscape(lang))
 	var tv TVDetail
 	if err := c.doGet(ctx, path, &tv); err != nil {
 		return nil, err
@@ -407,8 +411,8 @@ func (c *Client) GetTV(ctx context.Context, id int) (*TVDetail, error) {
 }
 
 // GetPerson fetches full person details with external IDs appended.
-func (c *Client) GetPerson(ctx context.Context, id int) (*PersonDetail, error) {
-	path := fmt.Sprintf("/person/%d?append_to_response=external_ids", id)
+func (c *Client) GetPerson(ctx context.Context, id int, lang string) (*PersonDetail, error) {
+	path := fmt.Sprintf("/person/%d?append_to_response=external_ids&language=%s", id, url.QueryEscape(lang))
 	var person PersonDetail
 	if err := c.doGet(ctx, path, &person); err != nil {
 		return nil, err
@@ -417,8 +421,8 @@ func (c *Client) GetPerson(ctx context.Context, id int) (*PersonDetail, error) {
 }
 
 // GetSeason fetches a TV season with all episodes inline.
-func (c *Client) GetSeason(ctx context.Context, tvID, seasonNumber int) (*SeasonDetail, error) {
-	path := fmt.Sprintf("/tv/%d/season/%d", tvID, seasonNumber)
+func (c *Client) GetSeason(ctx context.Context, tvID, seasonNumber int, lang string) (*SeasonDetail, error) {
+	path := fmt.Sprintf("/tv/%d/season/%d?language=%s", tvID, seasonNumber, url.QueryEscape(lang))
 	var season SeasonDetail
 	if err := c.doGet(ctx, path, &season); err != nil {
 		return nil, err

@@ -60,6 +60,7 @@ func (s *metadataServer) Search(ctx context.Context, req *pluginv1.SearchMetadat
 		Year:        int(req.GetYear()),
 		ContentType: req.GetItemType(),
 		ProviderIDs: stringMapFromStruct(req.GetProviderIds()),
+		Language:    req.GetLanguage(),
 	})
 	if err != nil {
 		return nil, err
@@ -431,6 +432,7 @@ func seasonsRequestFromProto(req *pluginv1.GetSeasonsRequest, capabilityID strin
 	return metadata.SeasonsRequest{
 		ProviderIDs: providerIDsFromProto(req.GetProviderIds(), capabilityID, req.GetSeriesProviderId()),
 		ContentType: "series",
+		Language:    req.GetLanguage(),
 	}
 }
 
@@ -438,6 +440,7 @@ func episodesRequestFromProto(req *pluginv1.GetEpisodesRequest, capabilityID str
 	return metadata.EpisodesRequest{
 		ProviderIDs:  providerIDsFromProto(req.GetProviderIds(), capabilityID, req.GetSeriesProviderId()),
 		SeasonNumber: int(req.GetSeasonNumber()),
+		Language:     req.GetLanguage(),
 	}
 }
 
