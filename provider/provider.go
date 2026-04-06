@@ -401,6 +401,7 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 
 	lang := tmdbLanguage(req.Language)
 	var imgs *ImageSet
+	primaryPosterPath := ""
 	switch req.ContentType {
 	case "movie":
 		movie, err := p.client.GetMovie(ctx, id, lang)
@@ -408,51 +409,51 @@ func (p *Provider) GetImages(ctx context.Context, req metadata.ImageRequest) ([]
 			return nil, err
 		}
 		imgs = movie.Images
+		primaryPosterPath = movie.PosterPath
 	case "series":
 		tv, err := p.client.GetTV(ctx, id, lang)
 		if err != nil {
 			return nil, err
 		}
 		imgs = tv.Images
-	}
-
-	if imgs == nil {
-		return nil, nil
+		primaryPosterPath = tv.PosterPath
 	}
 
 	var out []metadata.RemoteImage
-	for _, img := range imgs.Posters {
-		out = append(out, metadata.RemoteImage{
-			URL:      img.FilePath,
-			Type:     metadata.ImagePoster,
-			Language: img.ISO639_1,
-			Width:    img.Width,
-			Height:   img.Height,
-			Rating:   img.VoteAverage,
-		})
-	}
-	for _, img := range imgs.Backdrops {
-		out = append(out, metadata.RemoteImage{
-			URL:      img.FilePath,
-			Type:     metadata.ImageBackdrop,
-			Language: img.ISO639_1,
-			Width:    img.Width,
-			Height:   img.Height,
-			Rating:   img.VoteAverage,
-		})
-	}
-	for _, img := range imgs.Logos {
-		out = append(out, metadata.RemoteImage{
-			URL:      img.FilePath,
-			Type:     metadata.ImageLogo,
-			Language: img.ISO639_1,
-			Width:    img.Width,
-			Height:   img.Height,
-			Rating:   img.VoteAverage,
-		})
+	if imgs != nil {
+		for _, img := range imgs.Posters {
+			out = append(out, metadata.RemoteImage{
+				URL:      img.FilePath,
+				Type:     metadata.ImagePoster,
+				Language: img.ISO639_1,
+				Width:    img.Width,
+				Height:   img.Height,
+				Rating:   img.VoteAverage,
+			})
+		}
+		for _, img := range imgs.Backdrops {
+			out = append(out, metadata.RemoteImage{
+				URL:      img.FilePath,
+				Type:     metadata.ImageBackdrop,
+				Language: img.ISO639_1,
+				Width:    img.Width,
+				Height:   img.Height,
+				Rating:   img.VoteAverage,
+			})
+		}
+		for _, img := range imgs.Logos {
+			out = append(out, metadata.RemoteImage{
+				URL:      img.FilePath,
+				Type:     metadata.ImageLogo,
+				Language: img.ISO639_1,
+				Width:    img.Width,
+				Height:   img.Height,
+				Rating:   img.VoteAverage,
+			})
+		}
 	}
 
-	return out, nil
+	return preferPrimaryImage(out, metadata.ImagePoster, primaryPosterPath, imageLanguage(lang)), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +529,57 @@ func (p *Provider) GetEpisodes(ctx context.Context, req metadata.EpisodesRequest
 		episodes = append(episodes, epResult)
 	}
 	return episodes, nil
+}
+
+func imageLanguage(lang string) string {
+	norm := strings.TrimSpace(strings.ToLower(lang))
+	if norm == "" {
+		return ""
+	}
+	if idx := strings.IndexAny(norm, "-_"); idx >= 0 {
+		norm = norm[:idx]
+	}
+	return norm
+}
+
+func preferPrimaryImage(
+	images []metadata.RemoteImage,
+	imageType metadata.ImageType,
+	primaryURL, language string,
+) []metadata.RemoteImage {
+	primaryURL = strings.TrimSpace(primaryURL)
+	if primaryURL == "" {
+		return images
+	}
+
+	bestRating := 0.0
+	primaryIdx := -1
+	for i, img := range images {
+		if img.Type != imageType {
+			continue
+		}
+		if img.Rating > bestRating {
+			bestRating = img.Rating
+		}
+		if img.URL == primaryURL {
+			primaryIdx = i
+		}
+	}
+
+	if primaryIdx >= 0 {
+		images[primaryIdx].Rating = bestRating + 1
+		if images[primaryIdx].Language == "" && language != "" {
+			images[primaryIdx].Language = language
+		}
+		return images
+	}
+
+	return append(images, metadata.RemoteImage{
+		URL:      primaryURL,
+		Type:     imageType,
+		Language: language,
+		Rating:   bestRating + 1,
+	})
 }
 
 // ---------------------------------------------------------------------------

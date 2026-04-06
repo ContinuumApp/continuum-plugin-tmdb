@@ -73,6 +73,148 @@ func TestGetImagesReturnsRawPaths(t *testing.T) {
 	}
 }
 
+func TestGetImagesPrefersTMDBPrimaryPoster(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/configuration":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"images": map[string]any{
+					"secure_base_url": serverURL(t, r) + "/images/",
+				},
+			})
+		case "/movie/42":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":          42,
+				"poster_path": "/poster-primary.jpg",
+				"images": map[string]any{
+					"posters": []map[string]any{
+						{
+							"file_path":    "/poster-primary.jpg",
+							"iso_639_1":    "en",
+							"width":        2000,
+							"height":       3000,
+							"vote_average": 5.0,
+						},
+						{
+							"file_path":    "/poster-textless.jpg",
+							"iso_639_1":    nil,
+							"width":        2000,
+							"height":       3000,
+							"vote_average": 8.0,
+						},
+					},
+				},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	p := newTMDBTestProvider(server.URL)
+
+	images, err := p.GetImages(context.Background(), metadata.ImageRequest{
+		ProviderIDs: map[string]string{"tmdb": "42"},
+		ContentType: "movie",
+	})
+	if err != nil {
+		t.Fatalf("GetImages() error = %v", err)
+	}
+
+	var primary, textless *metadata.RemoteImage
+	for i := range images {
+		switch images[i].URL {
+		case "/poster-primary.jpg":
+			primary = &images[i]
+		case "/poster-textless.jpg":
+			textless = &images[i]
+		}
+	}
+
+	if primary == nil {
+		t.Fatal("primary poster missing from GetImages() result")
+	}
+	if textless == nil {
+		t.Fatal("textless poster missing from GetImages() result")
+	}
+	if primary.Rating <= textless.Rating {
+		t.Fatalf("primary rating = %v, textless rating = %v; want primary > textless", primary.Rating, textless.Rating)
+	}
+}
+
+func TestGetImagesAddsPrimaryPosterWhenImagesMissIt(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/configuration":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"images": map[string]any{
+					"secure_base_url": serverURL(t, r) + "/images/",
+				},
+			})
+		case "/movie/42":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":          42,
+				"poster_path": "/poster-primary.jpg",
+				"images": map[string]any{
+					"posters": []map[string]any{
+						{
+							"file_path":    "/poster-alt.jpg",
+							"width":        2000,
+							"height":       3000,
+							"vote_average": 8.0,
+						},
+					},
+				},
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	p := newTMDBTestProvider(server.URL)
+
+	images, err := p.GetImages(context.Background(), metadata.ImageRequest{
+		ProviderIDs: map[string]string{"tmdb": "42"},
+		ContentType: "movie",
+		Language:    "en",
+	})
+	if err != nil {
+		t.Fatalf("GetImages() error = %v", err)
+	}
+
+	var primary, alt *metadata.RemoteImage
+	for i := range images {
+		switch images[i].URL {
+		case "/poster-primary.jpg":
+			primary = &images[i]
+		case "/poster-alt.jpg":
+			alt = &images[i]
+		}
+	}
+
+	if primary == nil {
+		t.Fatal("primary poster was not appended to GetImages() result")
+	}
+	if alt == nil {
+		t.Fatal("alternate poster missing from GetImages() result")
+	}
+	if primary.Language != "en" {
+		t.Fatalf("primary language = %q, want en", primary.Language)
+	}
+	if primary.Rating <= alt.Rating {
+		t.Fatalf("primary rating = %v, alt rating = %v; want primary > alt", primary.Rating, alt.Rating)
+	}
+}
+
 func TestGetSeasonsReturnsRawPosterPath(t *testing.T) {
 	t.Parallel()
 
