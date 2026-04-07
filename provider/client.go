@@ -29,8 +29,7 @@ type Client struct {
 	baseURL    string
 	imageBase  string // cached from /configuration
 	limiter    *rate.Limiter
-	configOnce sync.Once
-	configErr  error
+	configMu   sync.Mutex
 }
 
 // NewClient creates a TMDB API client with the given rate limit (requests per
@@ -59,16 +58,26 @@ func (c *Client) ImageURL(path, size string) string {
 }
 
 // loadConfiguration fetches /configuration and caches the image base URL.
-// Safe to call multiple times — only the first call hits the API.
+// Safe to call multiple times. Successful loads are cached, but transient
+// failures are retried so one canceled request does not poison the process.
 func (c *Client) loadConfiguration(ctx context.Context) error {
-	c.configOnce.Do(func() {
-		var cfg configResponse
-		c.configErr = c.doGet(ctx, "/configuration", &cfg)
-		if c.configErr == nil {
-			c.imageBase = cfg.Images.SecureBaseURL
-		}
-	})
-	return c.configErr
+	if c.imageBase != "" {
+		return nil
+	}
+
+	c.configMu.Lock()
+	defer c.configMu.Unlock()
+
+	if c.imageBase != "" {
+		return nil
+	}
+
+	var cfg configResponse
+	if err := c.doGet(ctx, "/configuration", &cfg); err != nil {
+		return err
+	}
+	c.imageBase = cfg.Images.SecureBaseURL
+	return nil
 }
 
 // doGet executes a GET request against the TMDB API with rate limiting,
