@@ -125,6 +125,60 @@ func TestResolveImageURL(t *testing.T) {
 	}
 }
 
+func TestResolveImageURL_RetriesConfigurationAfterCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	configCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/configuration" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		configCalls++
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"images": map[string]any{
+				"secure_base_url": "https://image.tmdb.org/t/p/",
+			},
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	client := provider.NewClient(1000)
+	client.SetBaseURL(server.URL)
+
+	ms := &metadataServer{
+		runtime: &runtimeServer{
+			provider: provider.NewProviderWithClient(client),
+		},
+	}
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := ms.ResolveImageURL(canceledCtx, &pluginv1.ResolveImageURLRequest{
+		Path:    "tmdb://poster/poster.jpg",
+		Variant: "featured",
+	}); err == nil {
+		t.Fatal("ResolveImageURL() with canceled context succeeded, want error")
+	}
+
+	resp, err := ms.ResolveImageURL(context.Background(), &pluginv1.ResolveImageURLRequest{
+		Path:    "tmdb://poster/poster.jpg",
+		Variant: "featured",
+	})
+	if err != nil {
+		t.Fatalf("ResolveImageURL() after canceled context error = %v", err)
+	}
+	if got, want := resp.GetUrl(), "https://image.tmdb.org/t/p/w500/poster.jpg"; got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+	if configCalls != 1 {
+		t.Fatalf("configuration calls = %d, want 1", configCalls)
+	}
+}
+
 func TestMetadataServerGetMetadata_IncludesReleaseDate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
