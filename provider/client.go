@@ -394,11 +394,11 @@ func (c *Client) FindByExternalID(ctx context.Context, externalID, source string
 }
 
 // GetMovie fetches full movie details with credits, external IDs, images,
-// and release dates appended in a single API call.
+// keywords, and release dates appended in a single API call.
 // The lang parameter is an ISO 639-1 code (e.g. "en", "ja") passed as
 // ?language= and &include_image_language= to get localized metadata and images.
 func (c *Client) GetMovie(ctx context.Context, id int, lang string) (*MovieDetail, error) {
-	path := fmt.Sprintf("/movie/%d?append_to_response=credits,external_ids,images,release_dates&language=%s&include_image_language=%s,null",
+	path := fmt.Sprintf("/movie/%d?append_to_response=credits,external_ids,images,keywords,release_dates&language=%s&include_image_language=%s,null",
 		id, url.QueryEscape(lang), url.QueryEscape(lang))
 	var movie MovieDetail
 	if err := c.doGet(ctx, path, &movie); err != nil {
@@ -408,9 +408,9 @@ func (c *Client) GetMovie(ctx context.Context, id int, lang string) (*MovieDetai
 }
 
 // GetTV fetches full TV show details with credits, external IDs, images,
-// and content ratings appended.
+// keywords, and content ratings appended.
 func (c *Client) GetTV(ctx context.Context, id int, lang string) (*TVDetail, error) {
-	path := fmt.Sprintf("/tv/%d?append_to_response=credits,external_ids,images,content_ratings&language=%s&include_image_language=%s,null",
+	path := fmt.Sprintf("/tv/%d?append_to_response=credits,external_ids,images,keywords,content_ratings&language=%s&include_image_language=%s,null",
 		id, url.QueryEscape(lang), url.QueryEscape(lang))
 	var tv TVDetail
 	if err := c.doGet(ctx, path, &tv); err != nil {

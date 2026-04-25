@@ -109,6 +109,7 @@ type MovieDetail struct {
 	Credits             *Credits             `json:"credits"`
 	ExternalIDs         *ExternalIDs         `json:"external_ids"`
 	Images              *ImageSet            `json:"images"`
+	Keywords            *MovieKeywords       `json:"keywords"`
 	ReleaseDates        *ReleaseDatesWrapper `json:"release_dates"`
 }
 
@@ -146,6 +147,7 @@ type TVDetail struct {
 	Credits             *Credits               `json:"credits"`
 	ExternalIDs         *ExternalIDs           `json:"external_ids"`
 	Images              *ImageSet              `json:"images"`
+	Keywords            *TVKeywords            `json:"keywords"`
 	ContentRatings      *ContentRatingsWrapper `json:"content_ratings"`
 }
 
@@ -226,6 +228,22 @@ type TVSeasonResult struct {
 type Genre struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
+}
+
+// Keyword is a TMDB keyword tag.
+type Keyword struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// MovieKeywords wraps movie keyword tags returned by append_to_response=keywords.
+type MovieKeywords struct {
+	Keywords []Keyword `json:"keywords"`
+}
+
+// TVKeywords wraps TV keyword tags returned by append_to_response=keywords.
+type TVKeywords struct {
+	Results []Keyword `json:"results"`
 }
 
 // Credits holds the cast and crew for a movie or TV show.
