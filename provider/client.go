@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,30 @@ import (
 
 	"golang.org/x/time/rate"
 )
+
+// HTTPError is returned by doGet for non-2xx responses that are not retried.
+// Callers can errors.As against it to inspect the status code (e.g. to treat
+// 404 on a subresource as an empty result rather than a hard failure).
+type HTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *HTTPError) Error() string {
+	if e.Message != "" {
+		return fmt.Sprintf("tmdb: HTTP %d: %s", e.StatusCode, e.Message)
+	}
+	return fmt.Sprintf("tmdb: HTTP %d", e.StatusCode)
+}
+
+// IsNotFound reports whether err originated as a TMDB 404 response.
+func IsNotFound(err error) bool {
+	var herr *HTTPError
+	if errors.As(err, &herr) {
+		return herr.StatusCode == http.StatusNotFound
+	}
+	return false
+}
 
 const (
 	defaultBaseURL  = "https://api.themoviedb.org/3"
@@ -141,10 +166,11 @@ func (c *Client) doGet(ctx context.Context, path string, dest any) error {
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 			resp.Body.Close()
 			var apiErr apiError
-			if err := json.Unmarshal(body, &apiErr); err == nil && apiErr.StatusMessage != "" {
-				return fmt.Errorf("tmdb: HTTP %d: %s", resp.StatusCode, apiErr.StatusMessage)
+			msg := ""
+			if err := json.Unmarshal(body, &apiErr); err == nil {
+				msg = apiErr.StatusMessage
 			}
-			return fmt.Errorf("tmdb: HTTP %d", resp.StatusCode)
+			return &HTTPError{StatusCode: resp.StatusCode, Message: msg}
 		}
 
 		// 2xx — decode response.
