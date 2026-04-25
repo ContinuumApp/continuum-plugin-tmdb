@@ -508,6 +508,11 @@ func (p *Provider) GetEpisodes(ctx context.Context, req metadata.EpisodesRequest
 	lang := tmdbLanguage(req.Language)
 	season, err := p.client.GetSeason(ctx, id, req.SeasonNumber, lang)
 	if err != nil {
+		if IsNotFound(err) {
+			// TMDb has the show but no record for this season (e.g. Season 0
+			// specials). That is an empty result, not a stale show id.
+			return nil, nil
+		}
 		return nil, err
 	}
 
