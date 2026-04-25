@@ -416,6 +416,45 @@ func TestGetPersonDetail_FindsTMDBPersonByIMDbID(t *testing.T) {
 	}
 }
 
+func TestGetEpisodesReturnsNilOnSeasonNotFound(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/configuration":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"images": map[string]any{
+					"secure_base_url": serverURL(t, r) + "/images/",
+				},
+			})
+		case "/tv/82104/season/0":
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status_code":    34,
+				"status_message": "The resource you requested could not be found.",
+			})
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	p := newTMDBTestProvider(server.URL)
+
+	episodes, err := p.GetEpisodes(context.Background(), metadata.EpisodesRequest{
+		ProviderIDs:  map[string]string{"tmdb": "82104"},
+		SeasonNumber: 0,
+	})
+	if err != nil {
+		t.Fatalf("GetEpisodes() error = %v, want nil", err)
+	}
+	if episodes != nil {
+		t.Fatalf("episodes = %v, want nil", episodes)
+	}
+}
+
 func newTMDBTestProvider(baseURL string) *Provider {
 	client := NewClient(1000)
 	client.SetBaseURL(baseURL)
