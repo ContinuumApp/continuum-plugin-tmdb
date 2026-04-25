@@ -312,6 +312,9 @@ func (p *Provider) getMovieMetadata(ctx context.Context, id int, lang string) (*
 	for _, g := range movie.Genres {
 		result.Genres = append(result.Genres, g.Name)
 	}
+	if movie.Keywords != nil {
+		result.Keywords = keywordNames(movie.Keywords.Keywords)
+	}
 	for _, c := range movie.ProductionCompanies {
 		result.Studios = append(result.Studios, c.Name)
 	}
@@ -363,6 +366,9 @@ func (p *Provider) getTVMetadata(ctx context.Context, id int, lang string) (*met
 
 	for _, g := range tv.Genres {
 		result.Genres = append(result.Genres, g.Name)
+	}
+	if tv.Keywords != nil {
+		result.Keywords = keywordNames(tv.Keywords.Results)
 	}
 	for _, n := range tv.Networks {
 		result.Networks = append(result.Networks, n.Name)
@@ -629,6 +635,24 @@ func convertPeople(credits *Credits) []models.ItemPerson {
 		})
 	}
 	return people
+}
+
+func keywordNames(records []Keyword) []string {
+	keywords := make([]string, 0, len(records))
+	seen := make(map[string]struct{}, len(records))
+	for _, record := range records {
+		name := strings.TrimSpace(record.Name)
+		if name == "" {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		keywords = append(keywords, name)
+	}
+	return keywords
 }
 
 func tmdbProfileImageURL(path string) string {

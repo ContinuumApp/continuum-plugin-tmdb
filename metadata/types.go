@@ -65,6 +65,7 @@ type MetadataResult struct {
 	Year              int
 	Runtime           int
 	Genres            []string
+	Keywords          []string
 	Studios           []string
 	Networks          []string
 	Countries         []string

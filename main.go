@@ -375,6 +375,7 @@ func metadataItemFromResult(result *metadata.MetadataResult, itemType string) (*
 		Studios:           append([]string(nil), result.Studios...),
 		Networks:          append([]string(nil), result.Networks...),
 		Countries:         append([]string(nil), result.Countries...),
+		Metadata:          metadataStruct(result),
 		OriginalLanguage:  result.OriginalLanguage,
 		ContentRating:     result.ContentRating,
 		ProviderIds:       providerIDs,
@@ -528,6 +529,24 @@ func structFromMap(value map[string]any) *structpb.Struct {
 
 func ratingsStruct(ratings metadata.Ratings) *structpb.Struct {
 	return structFromMap(ratingsMap(ratings))
+}
+
+func metadataStruct(result *metadata.MetadataResult) *structpb.Struct {
+	values := make(map[string]any)
+	if len(result.Keywords) > 0 {
+		keywords := make([]any, 0, len(result.Keywords))
+		for _, keyword := range result.Keywords {
+			keyword = strings.TrimSpace(keyword)
+			if keyword == "" {
+				continue
+			}
+			keywords = append(keywords, keyword)
+		}
+		if len(keywords) > 0 {
+			values["keywords"] = keywords
+		}
+	}
+	return structFromMap(values)
 }
 
 func ratingsMap(ratings metadata.Ratings) map[string]any {
